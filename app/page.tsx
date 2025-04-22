@@ -28,18 +28,15 @@ export default function Home() {
   const [isRequestAILoading, setIsRequestAILoading] = useState(false)
   const [isResponseAILoading, setIsResponseAILoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
-  const [isApiAvailable, setIsApiAvailable] = useState(false) // Começar assumindo que a API não está disponível
+  const [isApiAvailable, setIsApiAvailable] = useState(false)
   const [apiStatusMessage, setApiStatusMessage] = useState<string | null>("Verificando disponibilidade da API...")
   const [isCheckingApi, setIsCheckingApi] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
 
-  // Verificar se a API está disponível ao carregar a página
   useEffect(() => {
     const checkAPI = async () => {
       await checkApiAvailability()
 
-      // Se a API não estiver disponível após a primeira verificação, tente novamente após 2 segundos
-      // mas apenas uma vez para não sobrecarregar o servidor
       if (!isApiAvailable && retryCount === 0) {
         setTimeout(async () => {
           console.log("Tentando verificar a API novamente...")
@@ -52,13 +49,11 @@ export default function Home() {
     checkAPI()
   }, [])
 
-  // Substitua a função checkApiAvailability atual por esta versão melhorada
   const checkApiAvailability = async () => {
     try {
       setIsCheckingApi(true)
       console.log("Verificando disponibilidade da API...")
 
-      // Usar um endpoint GET simples para verificar se a API está disponível
       const response = await fetch("/api/ai-generate", {
         method: "GET",
         cache: "no-store",
@@ -69,7 +64,6 @@ export default function Home() {
 
       console.log("Status da resposta:", response.status)
 
-      // Se o status for 500 ou qualquer outro erro, assumir que a API não está disponível
       if (response.status !== 200) {
         console.error(`API respondeu com status ${response.status}`)
         setIsApiAvailable(false)
@@ -78,7 +72,6 @@ export default function Home() {
         return
       }
 
-      // Tentar obter o texto da resposta primeiro
       let responseText
       try {
         responseText = await response.text()
@@ -89,7 +82,6 @@ export default function Home() {
         return
       }
 
-      // Verificar se o texto está vazio
       if (!responseText || responseText.trim() === "") {
         console.error("API retornou resposta vazia")
         setIsApiAvailable(false)
@@ -97,7 +89,6 @@ export default function Home() {
         return
       }
 
-      // Tentar analisar como JSON
       let data
       try {
         data = JSON.parse(responseText)
@@ -134,7 +125,6 @@ export default function Home() {
     if (!silent) setApiError(null)
 
     try {
-      // Se a API não estiver disponível, usar modo offline
       if (!isApiAvailable) {
         throw new Error("API não disponível - usando modo offline")
       }
@@ -153,24 +143,19 @@ export default function Home() {
         }),
       })
 
-      // Verificar se a resposta é ok antes de tentar processar
       if (!response.ok) {
-        // Tentar obter o texto da resposta para diagnóstico
         const errorText = await response.text()
         console.error("Resposta não-ok da API:", errorText.substring(0, 200))
         throw new Error(`Erro na API: ${response.status} - ${errorText.substring(0, 100)}...`)
       }
 
-      // Obter o texto da resposta
       const responseText = await response.text()
 
-      // Verificar se o texto está vazio
       if (!responseText || responseText.trim() === "") {
         console.error("Resposta vazia da API")
         throw new Error("A API retornou uma resposta vazia")
       }
 
-      // Tentar analisar como JSON
       let data
       try {
         data = JSON.parse(responseText)
@@ -179,13 +164,11 @@ export default function Home() {
         throw new Error(`Resposta inválida da API: ${responseText.substring(0, 100)}...`)
       }
 
-      // Verificar se há erro na resposta
       if (data.error) {
         console.error("Erro retornado pela API:", data.error)
         throw new Error(data.error)
       }
 
-      // Verificar se há aviso na resposta (modo fallback)
       if (data.warning && !silent) {
         setApiError(`Aviso: ${data.warning}`)
       }
@@ -203,7 +186,6 @@ export default function Home() {
       if (!silent) {
         setApiError(error.message || "Erro ao chamar a API do Grok")
 
-        // Se for um erro de API, marcar como indisponível
         if (
           error.message.includes("API não disponível") ||
           error.message.includes("Failed to fetch") ||
@@ -214,12 +196,10 @@ export default function Home() {
         }
       }
 
-      // Gerar uma resposta offline baseada no prompt
       return generateOfflineResponse(prompt)
     }
   }
 
-  // Função para gerar respostas offline quando a API não está disponível
   const generateOfflineResponse = (prompt: string): string => {
     const promptLower = prompt.toLowerCase()
 
@@ -243,14 +223,35 @@ export default function Home() {
   const generateMock = async (description = mockDescription, method = callType, useAI = false) => {
     if (!description) return
 
-    const endpointPath = "/api/" + description.toLowerCase().split(" ")[0]
+    const generateDynamicEndpoint = (desc: string) => {
+      const cleanDesc = desc
+        .toLowerCase()
+        .replace(/[^\w\s]/gi, "")
+        .trim()
+
+      if (cleanDesc.includes("login") || cleanDesc.includes("autenticacao")) {
+        return "/api/auth/login"
+      } else if (cleanDesc.includes("usuario") || cleanDesc.includes("perfil")) {
+        return "/api/usuarios"
+      } else if (cleanDesc.includes("cobran") || cleanDesc.includes("pagamento")) {
+        return "/api/financeiro/cobrancas"
+      } else if (cleanDesc.includes("produto")) {
+        return "/api/produtos"
+      } else {
+        const words = cleanDesc.split(" ")
+        const slug = words.slice(0, Math.min(3, words.length)).join("-")
+        return `/api/${slug}`
+      }
+    }
+
+    const endpointPath = generateDynamicEndpoint(description)
+
     setEndpoint(endpointPath)
 
     if (useAI && isApiAvailable) {
       setIsAILoading(true)
       setApiError(null)
       try {
-        // Vamos tentar uma abordagem mais simples primeiro
         const combinedPrompt = `
           Você é um especialista em APIs RESTful.
           
@@ -278,7 +279,6 @@ export default function Home() {
           throw new Error("Não foi possível gerar os dados da API")
         }
 
-        // Extrair os JSONs da resposta
         try {
           const requestMatch = result.match(/REQUEST_JSON\s*\n([\s\S]*?)\n\s*RESPONSE_JSON/m)
           const responseMatch = result.match(/RESPONSE_JSON\s*\n([\s\S]*)/m)
@@ -294,11 +294,9 @@ export default function Home() {
             responseJson = responseMatch[1].trim()
           }
 
-          // Limpar possíveis marcadores de código
           requestJson = requestJson.replace(/```json|```/g, "").trim()
           responseJson = responseJson.replace(/```json|```/g, "").trim()
 
-          // Verificar se são JSONs válidos
           try {
             JSON.parse(requestJson)
             JSON.parse(responseJson)
@@ -313,14 +311,12 @@ export default function Home() {
           console.error("Erro ao extrair ou analisar JSONs da resposta:", e)
           console.log("Resposta completa:", result)
 
-          // Tentar uma abordagem alternativa - procurar por qualquer JSON na resposta
           try {
             const jsonMatches = result.match(/\{[\s\S]*?\}/g)
             if (jsonMatches && jsonMatches.length >= 2) {
               const reqJson = jsonMatches[0]
               const resJson = jsonMatches[1]
 
-              // Verificar se são JSONs válidos
               JSON.parse(reqJson)
               JSON.parse(resJson)
 
@@ -547,7 +543,6 @@ export default function Home() {
       }
 
       try {
-        // Limpar possíveis caracteres extras
         const cleanText = text
           .trim()
           .replace(/```json|```/g, "")
@@ -591,7 +586,6 @@ export default function Home() {
       }
 
       try {
-        // Limpar possíveis caracteres extras
         const cleanText = text
           .trim()
           .replace(/```json|```/g, "")
@@ -609,7 +603,6 @@ export default function Home() {
     }
   }
 
-  // Função para tentar reconectar com a API
   const handleRetryConnection = async () => {
     setApiError(null)
     setApiStatusMessage("Verificando conexão com a API...")
@@ -763,7 +756,15 @@ export default function Home() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-gray-400">Endpoint</Label>
-                      <div className="bg-gray-800 p-2 rounded mt-1 text-sm font-mono text-cyan-200">{endpoint}</div>
+                      <div className="bg-gray-800 p-2 rounded mt-1 text-sm font-mono text-cyan-200 overflow-auto">
+                        <span className="text-gray-400">URL: </span>
+                        {endpoint}
+                        {callType === "GET" && (
+                          <div className="mt-1 text-xs text-gray-400">
+                            Exemplo de uso: <span className="text-cyan-200">fetch('{endpoint}')</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <Label className="text-gray-400">Método HTTP</Label>
