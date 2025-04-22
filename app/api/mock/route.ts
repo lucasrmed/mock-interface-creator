@@ -49,4 +49,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: "Erro ao processar requisição" }, { status: 500 })
   }
 }
-

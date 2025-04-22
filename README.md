@@ -8,7 +8,7 @@ Uma aplicação web interativa para criar e testar mocks de API RESTful rapidame
 
 - ✨ Geração rápida de mocks de API para diferentes tipos de requisições (GET, POST)
 - 🚀 Simulação de chamadas de API com respostas personalizadas
-- 🧠 Geração assistida por IA para corpos de requisição e resposta
+- 🧠 Geração assistida por IA usando a API da OpenAI
 - 📋 Copiar facilmente JSONs para usar em seu código
 - 🔄 Suporte para visualização de resposta em tempo real
 
@@ -19,42 +19,40 @@ Uma aplicação web interativa para criar e testar mocks de API RESTful rapidame
 - **Tailwind CSS** - Framework CSS para estilização
 - **shadcn/ui** - Componentes de UI reutilizáveis
 - **TypeScript** - Tipagem estática para JavaScript
+- **OpenAI API** - Para geração de conteúdo com IA
 
 ## Instalação
 
 1. Clone este repositório:
-   \`\`\`bash
-   git clone https://github.com/seu-usuario/mock-api-tester.git
-   cd mock-api-tester
-   \`\`\`
+\`\`\`bash
+git clone https://github.com/seu-usuario/mock-api-tester.git
+cd mock-api-tester
+\`\`\`
 
 2. Instale as dependências:
-   \`\`\`bash
-   npm install
-
+\`\`\`bash
+npm install
 # ou
-
 yarn install
-
 # ou
-
 pnpm install
 \`\`\`
 
-3. Execute o servidor de desenvolvimento:
-   \`\`\`bash
-   npm run dev
+3. Configure a chave da API da OpenAI:
+   - Crie um arquivo `.env.local` na raiz do projeto
+   - Adicione sua chave da API: `OPENAI_API_KEY=sua_chave_da_api_aqui`
+   - Você pode obter uma chave da API em [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
+4. Execute o servidor de desenvolvimento:
+\`\`\`bash
+npm run dev
 # ou
-
 yarn dev
-
 # ou
-
 pnpm dev
 \`\`\`
 
-4. Acesse a aplicação em [http://localhost:3000](http://localhost:3000)
+5. Acesse a aplicação em [http://localhost:3000](http://localhost:3000)
 
 ## Como Usar
 
@@ -64,29 +62,29 @@ pnpm dev
 
 3. **Defina parâmetros**: Liste os parâmetros de entrada e saída esperados
 
-4. **Gere o mock**: Clique em "Gerar Mock Simples" ou use "Gerar com IA" para criar automaticamente exemplos mais detalhados
+4. **Gere o mock**: Clique em "Gerar Mock Simples" ou use "Gerar com IA" para criar automaticamente exemplos mais detalhados usando a API da OpenAI
 
 5. **Teste sua API**: Visualize e edite os corpos de requisição e resposta, e teste a chamada para ver como funcionaria em uma aplicação real
 
 6. **Copie para seu código**: Use os botões de cópia para transferir os JSONs diretamente para seu código
 
-## Simulação de IA
+## Integração com OpenAI
 
-A aplicação inclui uma simulação de IA que gera respostas contextualmente relevantes com base na entrada do usuário. Esta funcionalidade permite:
+A aplicação utiliza a API da OpenAI para gerar:
 
-- Geração de descrições técnicas de API
-- Sugestão de parâmetros de entrada e saída
-- Criação de corpos de requisição JSON
-- Criação de corpos de resposta JSON
+- Descrições técnicas de API
+- Parâmetros de entrada e saída
+- Corpos de requisição JSON
+- Corpos de resposta JSON
 
-Esta funcionalidade não depende de APIs externas pagas e funciona inteiramente no lado do servidor com base em padrões e heurísticas predefinidos.
+Para usar esta funcionalidade, você precisa configurar sua chave da API da OpenAI no arquivo `.env.local`.
 
 ## Personalização
 
 Você pode personalizar os mocks gerados editando os arquivos:
 
 - `app/api/mock/route.ts` - Para alterar as respostas padrão da API de mock
-- `app/api/ai-generate/route.ts` - Para modificar a lógica de simulação de IA
+- `app/api/ai-generate/route.ts` - Para modificar a integração com a API da OpenAI
 
 ## Contribuições
 

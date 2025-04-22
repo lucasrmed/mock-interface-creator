@@ -1,78 +1,191 @@
 import { NextResponse } from "next/server"
+import { generateText } from "ai"
+import { xai } from "@ai-sdk/xai"
+import OpenAI from "openai"
+
+// Substitua a função GET atual por esta versão simplificada
+export async function GET() {
+  try {
+    // Retornar um JSON simples sem tentar acessar variáveis de ambiente
+    // ou fazer qualquer operação que possa falhar
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        message: "API disponível",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    )
+  } catch (error) {
+    console.error("Erro no endpoint GET:", error)
+    // Garantir que sempre retornamos um JSON válido, mesmo em caso de erro
+    return new Response(
+      JSON.stringify({
+        status: "error",
+        message: "Erro interno no servidor",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    )
+  }
+}
 
 export async function POST(request: Request) {
   try {
-    const { prompt, maxTokens = 500 } = await request.json()
+    // Obter o corpo da requisição
+    const body = await request.json().catch(() => ({}))
+    const { prompt, maxTokens = 500 } = body
+
+    // Log para debug
+    console.log("Recebida requisição para Grok com prompt:", prompt?.substring(0, 50) + "...")
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt é obrigatório" }, { status: 400 })
     }
 
-    let simulatedResponse = ""
-
-    if (prompt.toLowerCase().includes("json") && prompt.toLowerCase().includes("requisição")) {
-      if (prompt.toLowerCase().includes("login")) {
-        simulatedResponse = '{\n  "usuario": "exemplo@email.com",\n  "senha": "senha123"\n}'
-      } else if (prompt.toLowerCase().includes("cobran") || prompt.toLowerCase().includes("pagamento")) {
-        simulatedResponse = '{\n  "idCobranca": "123456",\n  "valor": 159.99,\n  "dataVencimento": "2025-05-15"\n}'
-      } else if (prompt.toLowerCase().includes("usuario") || prompt.toLowerCase().includes("perfil")) {
-        simulatedResponse = '{\n  "id": "usr_123",\n  "nome": "João Silva",\n  "email": "joao@exemplo.com"\n}'
-      } else {
-        simulatedResponse = '{\n  "param1": "valor1",\n  "param2": "valor2",\n  "timestamp": "2025-04-07T15:24:09Z"\n}'
-      }
-    } else if (prompt.toLowerCase().includes("json") && prompt.toLowerCase().includes("resposta")) {
-      if (prompt.toLowerCase().includes("login")) {
-        simulatedResponse =
-          '{\n  "status": "sucesso",\n  "mensagem": "Login realizado com sucesso",\n  "token": "abc123xyz",\n  "usuario": {\n    "id": "usr_123",\n    "nome": "João Silva",\n    "email": "joao@exemplo.com"\n  }\n}'
-      } else if (prompt.toLowerCase().includes("cobran") || prompt.toLowerCase().includes("pagamento")) {
-        simulatedResponse =
-          '{\n  "id": "cob_123456",\n  "valor": 159.99,\n  "status": "pendente",\n  "dataVencimento": "2025-05-15",\n  "linkPagamento": "https://exemplo.com/pagar/123456",\n  "cliente": {\n    "id": "cli_789",\n    "nome": "João Silva"\n  }\n}'
-      } else if (prompt.toLowerCase().includes("usuario") || prompt.toLowerCase().includes("perfil")) {
-        simulatedResponse =
-          '{\n  "id": "usr_123",\n  "nome": "João Silva",\n  "email": "joao@exemplo.com",\n  "telefone": "+5511999998888",\n  "endereco": {\n    "rua": "Av. Paulista",\n    "numero": "1000",\n    "cidade": "São Paulo",\n    "estado": "SP"\n  },\n  "preferencias": {\n    "notificacoes": true,\n    "tema": "escuro"\n  }\n}'
-      } else {
-        simulatedResponse =
-          '{\n  "status": "sucesso",\n  "dados": {\n    "id": "123",\n    "nome": "Exemplo",\n    "criadoEm": "2025-04-07T15:24:09Z",\n    "detalhes": {\n      "campo1": "valor1",\n      "campo2": "valor2"\n    }\n  }\n}'
-      }
-    } else if (
-      prompt.toLowerCase().includes("parâmetros") ||
-      prompt.toLowerCase().includes("entrada") ||
-      prompt.toLowerCase().includes("saída")
-    ) {
-      if (prompt.toLowerCase().includes("login")) {
-        simulatedResponse = "Entrada: email, senha\nSaída: token, dados do usuário, status da autenticação"
-      } else if (prompt.toLowerCase().includes("cobran") || prompt.toLowerCase().includes("pagamento")) {
-        simulatedResponse =
-          "Entrada: id do cliente, valor, data de vencimento\nSaída: id da cobrança, status, link de pagamento, detalhes do pagamento"
-      } else if (prompt.toLowerCase().includes("usuario") || prompt.toLowerCase().includes("perfil")) {
-        simulatedResponse =
-          "Entrada: id do usuário\nSaída: nome, email, telefone, endereço, preferências, histórico de atividades"
-      } else {
-        simulatedResponse =
-          "Entrada: parâmetros relevantes para sua API\nSaída: dados estruturados conforme necessidade da aplicação"
-      }
-    } else {
-      if (prompt.toLowerCase().includes("login") || prompt.toLowerCase().includes("autenticação")) {
-        simulatedResponse =
-          "API de autenticação de usuários com validação de credenciais, geração de token JWT, controle de sessão e verificação em duas etapas"
-      } else if (prompt.toLowerCase().includes("cobran") || prompt.toLowerCase().includes("pagamento")) {
-        simulatedResponse =
-          "API de gerenciamento de cobranças com detalhes de fatura, histórico de pagamentos, status de transação e métodos de pagamento"
-      } else if (prompt.toLowerCase().includes("usuario") || prompt.toLowerCase().includes("perfil")) {
-        simulatedResponse =
-          "API de perfil de usuário com dados pessoais, preferências, configurações de conta e histórico de atividades"
-      } else {
-        simulatedResponse =
-          "API personalizada com endpoints RESTful para gerenciamento de recursos, autenticação segura e validação de dados"
-      }
+    // Verificar se a chave da API está configurada
+    if (!process.env.XAI_API_KEY) {
+      console.error("Chave da API Grok não configurada")
+      return NextResponse.json(
+        { error: "Chave da API Grok não configurada. Configure a variável de ambiente XAI_API_KEY." },
+        { status: 500 },
+      )
     }
 
-    return NextResponse.json({ text: simulatedResponse })
-  } catch (error) {
-    console.error("Erro ao processar requisição:", error)
-    return NextResponse.json({
-      text: "API personalizada para gerenciamento de recursos com autenticação e validação de dados",
-    })
+    try {
+      // Método 1: Usando o AI SDK
+      console.log("Chamando API Grok usando AI SDK...")
+
+      // Usar o modelo correto para o Grok - "grok-2-1212"
+      const result = await generateText({
+        model: xai("grok-2-1212"),
+        prompt,
+        maxTokens,
+        temperature: 0.5,
+      })
+
+      // Verificar a resposta da API e garantir que temos um conteúdo válido
+      const text = result.text || ""
+
+      if (!text || text.trim() === "") {
+        console.error("Resposta vazia do Grok")
+
+        // Tentar o método alternativo com OpenAI client
+        console.log("Tentando método alternativo com OpenAI client...")
+        return await useOpenAIClient(prompt, maxTokens)
+      }
+
+      // Adicionar um log para debug
+      console.log("Resposta do Grok recebida com sucesso:", text.substring(0, 50) + "...")
+
+      return NextResponse.json({ text })
+    } catch (grokError: any) {
+      // Log detalhado do erro
+      console.error("Erro na chamada à API do Grok com AI SDK:", grokError)
+
+      // Tentar o método alternativo com OpenAI client
+      console.log("Tentando método alternativo com OpenAI client...")
+      try {
+        return await useOpenAIClient(prompt, maxTokens)
+      } catch (openaiError: any) {
+        console.error("Erro também no método alternativo:", openaiError)
+
+        // Fornecer uma resposta de fallback para não interromper o fluxo do usuário
+        const fallbackResponse = getFallbackResponse(prompt)
+
+        if (fallbackResponse) {
+          console.log("Usando resposta de fallback")
+          return NextResponse.json({
+            text: fallbackResponse,
+            warning: "Usando resposta de fallback devido a um erro na API do Grok",
+          })
+        }
+
+        // Se não tiver fallback, retorna o erro
+        return NextResponse.json(
+          {
+            error: "Erro ao chamar a API do Grok: " + (openaiError.message || "Erro desconhecido"),
+            details: openaiError.message || "Detalhes não disponíveis",
+          },
+          { status: 500 },
+        )
+      }
+    }
+  } catch (error: any) {
+    console.error("Erro ao processar requisição para Grok:", error)
+
+    // Retornar mensagem de erro mais detalhada
+    return NextResponse.json(
+      {
+        error: "Erro ao processar requisição",
+        details: error.message || "Erro desconhecido",
+      },
+      { status: 500 },
+    )
   }
 }
 
+// Função para usar o cliente OpenAI configurado para xAI
+async function useOpenAIClient(prompt: string, maxTokens: number) {
+  try {
+    const client = new OpenAI({
+      apiKey: process.env.XAI_API_KEY as string,
+      baseURL: "https://api.x.ai/v1",
+    })
+
+    const completion = await client.chat.completions.create({
+      model: "grok-2-latest",
+      messages: [
+        {
+          role: "system",
+          content: "Você é um assistente especializado em APIs RESTful e desenvolvimento de software.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.5,
+    })
+
+    const text = completion.choices[0].message.content || ""
+
+    if (!text || text.trim() === "") {
+      throw new Error("Resposta vazia do Grok via OpenAI client")
+    }
+
+    console.log("Resposta do Grok via OpenAI client recebida com sucesso:", text.substring(0, 50) + "...")
+
+    return NextResponse.json({ text })
+  } catch (error: any) {
+    console.error("Erro na chamada à API do Grok via OpenAI client:", error)
+    throw error
+  }
+}
+
+// Função para gerar respostas de fallback quando a API falha
+function getFallbackResponse(prompt: string): string | null {
+  const promptLower = prompt.toLowerCase()
+
+  if (promptLower.includes("login") || promptLower.includes("autenticação")) {
+    return "API de autenticação de usuários com validação de credenciais e geração de token JWT."
+  } else if (promptLower.includes("usuário") || promptLower.includes("perfil")) {
+    return "API de gerenciamento de perfil de usuário com dados pessoais e preferências."
+  } else if (promptLower.includes("cobran") || promptLower.includes("pagamento")) {
+    return "API de gerenciamento de cobranças com detalhes de fatura e status de transação."
+  }
+
+  // Se não encontrar um padrão conhecido, retorna null para indicar que não há fallback
+  return null
+}
